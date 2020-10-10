@@ -11,7 +11,7 @@ published: true
 記事内で紹介するものは CLI として npm で公開しています。すぐに試したい方は次のコマンドから試すことができます。
 
 ```bash
-$ npx ankipan htttps://zenn.dev
+$ npx ankipan https://zenn.dev
 ```
 
 全体のコードを読みたい方は、以下のリンクからリポジトリを参照してください。
