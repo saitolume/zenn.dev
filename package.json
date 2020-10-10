@@ -1,14 +1,13 @@
 {
   "name": "zenn.dev",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "saitoeku3's articles and books published in zenn.dev",
+  "private": true,
+  "author": "Tadao Iseki <saitoeku3@gmail.com>",
+  "license": "UNLICENSE",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "zenn preview"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "zenn-cli": "^0.1.44"
   }
