@@ -12,7 +12,7 @@ published: true
 
 ```bash
 $ npx ankipan https://zenn.dev
-$ npx serve zenn.dev // 保存した Web ページは `serve` ですぐに確認できます
+$ npx serve zenn.dev # 保存した Web ページは `serve` ですぐに確認できます
 ```
 
 全体のコードを読みたい方は、以下のリンクからリポジトリを参照してください。
