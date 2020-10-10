@@ -3,7 +3,7 @@ title: "puppeteer を用いて Web ページをまるごと保存する"
 emoji: "💾"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ['JavaScript', 'puppeteer', 'CLI']
-published: false
+published: true
 ---
 
 `puppeteer` は Headless Chrome 使用することができる Node.js のライブラリです。今回は、その `pupeteer` を用いて Web ページをのリソースをまるごと保存する方法を紹介します。
