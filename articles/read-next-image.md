@@ -3,7 +3,7 @@ title: "Next.js 10 の画像最適化システム next/image を読んで理解�
 emoji: "🖼️"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ['javascript', 'nextjs']
-published: false
+published: true
 ---
 
 **※ ソースコードは 2020/11/20 時点の canary ブランチを参照しています。**
@@ -13,11 +13,22 @@ Next.js 10 では `next/image` から提供されるコンポーネントを使�
 
 ## 何を調べるのか
 
-目的を持たずに読んでいると露頭に迷いそうなので、最初に何を調べるのか決めます。
-今回は最適化の仕組みを紐解くことを目的として、コードを読みながら次のようにステップごとに調べることにしました。
+目的を持たずに読んでいると露頭に迷いそうなので、最初に何を調べるのか決めました。
+今回は最適化の仕組みを紐解くことを目的として、コードを読みながら次の 2 つについて調べます。
 
 1. 最適化された画像の出し分け
 2. 画像最適化処理
+
+## 結論
+
+1. 最適化された画像の出し分け
+   - `img` 要素の `srcset` 属性を利用して画面サイズに合う画像を表示している
+   - コンポーネントでは props の値から画像最適化に使用する URL を生成する
+   - `next.config.js` でローダーを指定することで外部サービスを用いた画像最適化ができる
+2. 画像最適化処理
+   - 画像の最適化や形式の変更はクライアントのリクエストを元にバックエンドで行う
+   - サーバーとクライアント両方で最適化された画像をキャッシュしている
+   - 最適化処理には `sharp` というライブラリが使用されている
 
 ## どのように調べるのか
 
@@ -29,7 +40,7 @@ $ yarn next ./test/integration/basic
 ```
 
 `yarn dev` を実行すると、packages の変更を監視してリアルタイムで反映します。
-`yarn next path-to-integration-test` を実行すると、開発環境の Next.js でアプリケーションのサーバーが立ち上がって動作確認ができるようになります。
+`yarn next path/to/integration/test` を実行すると、開発環境の Next.js でアプリケーションのサーバーが立ち上がって動作確認ができるようになります。
 
 ## 最適化した画像の出し分け
 
@@ -128,7 +139,6 @@ const WEBP = 'image/webp'
 const MODERN_TYPES = [/* AVIF, */ WEBP]
 
 // 色々省略
-
 const mimeType = getSupportedMimeType(MODERN_TYPES, headers.accept)
 const width = parseInt(w, 10)
 const quality = parseInt(q)
@@ -139,9 +149,9 @@ function getSupportedMimeType(options: string[], accept = ''): string {
 }
 ```
 
-WebP 対応の流れを追ってみましょう。まず、`@hapi/accept` の `mediaType` 関数に WebP の MIME タイプと HTTP の Accept ヘッダーを渡しています。この関数は 2 つの引数に含まれる MIME タイプからレスポンスに適切な MIME タイプを算出してくれます。
+WebP 対応の流れを追ってみましょう。まず、`@hapi/accept` の `mediaType` 関数に WebP の MIME タイプと Accept ヘッダーを渡しています。この関数は 2 つの引数に含まれる MIME タイプからレスポンスに適切な MIME タイプを算出してくれます。
 
-ちなみに HTTP の Accept ヘッダーには、クライアントが理解できるコンテンツの MIME タイプが記述されています。これを使用してクライアントごとに WebP に対応しているか確認していました。
+ちなみに Accept ヘッダーには、クライアントが理解できるコンテンツの MIME タイプが記述されています。これを使用してクライアントごとに WebP に対応しているか確認していました。
 
 https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Accept
 
@@ -180,7 +190,7 @@ if (await fileExists(hashDir, 'directory')) {
 }
 ```
 
-Cache-Control ヘッダーに `public, max-age=0, must-revalidate` を指定されているので、1 度画像を取得するとブラウザにもキャッシュが残ります。しかし、`must-revalidate` によって毎回キャッシュが正しいか確認する必要があるので、`sendEtagResponse` 関数を使用することで etag を返却して、キャッシュを使用しても良いことをブラウザに伝えています。
+キャッシュについてもう少し深堀りしてみます。コードから Cache-Control ヘッダーに `public, max-age=0, must-revalidate` が指定されていることが読み取れます。つまり、**キャッシュは残すけど使用する前に再検証しなければならない**ということです。これに対して、Next.js は `sendEtagResponse` 関数経由で etag を返却することによって、キャッシュを使用しても良いことをブラウザに伝えています。
 
 ```ts
 // packages/next/next-server/server/send-payload.ts
@@ -213,7 +223,7 @@ export function sendEtagResponse(
 
 ![Chrome Devtools の Network タブ](https://storage.googleapis.com/zenn-user-upload/pv9ol64d8yac49400f8eu0p3d8wt)
 
-キャッシュ周りの用語については MDN の Cache-Control を参照すれば詳しくわかります。
+キャッシュ周りの用語については MDN の Cache-Control を参照すると理解しやすいです。
 
 https://developer.mozilla.org/ja/docs/Web/HTTP/Headers/Cache-Control
 
@@ -247,12 +257,16 @@ https://github.com/lovell/sharp
 
 最適化処理の部分だけ抜き出すと非常にシンプルなことがわかります。やっていることは画像の「回転」「サイズ変更」「任意の形式への変換」「最適化されたバッファの出力」です。`contentType` は**リクエストの解釈**で算出した MIME タイプなので、WebP 対応のクライアントからのリクエストの場合は WebP に変換します。
 
-## まとめ
+## 結論 (再掲)
 
-- `next.config.js` でローダーを指定することで外部サービスを用いた画像最適化ができる
-- コンポーネントでは props の値から画像最適化に使用する URL を生成する
-- 画像の最適化や形式の変更はクライアントのリクエストを元にバックエンドで行う
-- 最適化処理には `sharp` というライブラリが使用されている
+1. 最適化された画像の出し分け
+   - `img` 要素の `srcset` 属性を利用して画面サイズに合う画像を表示している
+   - コンポーネントでは props の値から画像最適化に使用する URL を生成する
+   - `next.config.js` でローダーを指定することで外部サービスを用いた画像最適化ができる
+2. 画像最適化処理
+   - 画像の最適化や形式の変更はクライアントのリクエストを元にバックエンドで行う
+   - サーバーとクライアント両方で最適化された画像をキャッシュしている
+   - 最適化処理には `sharp` というライブラリが使用されている
 
 ## おまけ
 
